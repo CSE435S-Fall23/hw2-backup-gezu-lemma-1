@@ -6,6 +6,12 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+/*
+ * Student 1 name: Leoul Gezu
+ * Student 2 name: Yab Lemma
+ * Date: 9/16/2023
+ */
+
 /**
  * The Catalog keeps track of all available tables in the database and their
  * associated schemas.
@@ -16,12 +22,60 @@ import java.util.*;
 
 public class Catalog {
 	
+	// Private inner-class to manage table attributes
+	private class Table {
+		private HeapFile file;
+		private String name;
+		private String pkeyField;
+		
+		public Table(HeapFile file, String name, String pkeyField) {
+			this.file = file;
+			this.name = name;
+			this.pkeyField = pkeyField;
+		}
+		
+		public HeapFile getFile() {
+			return file;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public String getpkeyField() {
+			return pkeyField;
+		}
+		
+		public void setFile(HeapFile file) {
+			this.file = file;
+		}
+		
+		public void setName(String name) {
+			this.name = name;
+		}
+		
+		public void setpkeyField(String pkeyField) {
+			this.pkeyField = pkeyField;
+		}
+	}
+	
+	private HashMap<Integer, Table> tables; 
+	
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
     public Catalog() {
     	//your code here
+    	this.tables = new HashMap<>();
+    }
+    
+    public void setTables(HashMap<Integer, Table> tables) {
+    	this.tables = tables;
+    }
+    
+    public HashMap<Integer, Table> getTables() {
+    	return this.tables;
     }
 
     /**
@@ -34,6 +88,7 @@ public class Catalog {
      */
     public void addTable(HeapFile file, String name, String pkeyField) {
     	//your code here
+    	tables.put(file.getId(), new Table(file,name, pkeyField));
     }
 
     public void addTable(HeapFile file, String name) {
@@ -46,7 +101,12 @@ public class Catalog {
      */
     public int getTableId(String name) {
     	//your code here
-    	return 0;
+    	for (Table t: tables.values()) {
+    		if (t.getName().equals(name)) {
+    			return t.getFile().getId();
+    		}
+    	}
+    	throw new NoSuchElementException();
     }
 
     /**
@@ -56,7 +116,10 @@ public class Catalog {
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
     	//your code here
-    	return null;
+    	if (tables.get(tableid) == null) {
+    		throw new NoSuchElementException();
+    	}
+    	return tables.get(tableid).getFile().getTupleDesc();
     }
 
     /**
@@ -67,27 +130,41 @@ public class Catalog {
      */
     public HeapFile getDbFile(int tableid) throws NoSuchElementException {
     	//your code here
-    	return null;
+    	if (tables.get(tableid) == null) {
+    		throw new NoSuchElementException();
+    	}
+    	return tables.get(tableid).getFile();
     }
 
     /** Delete all tables from the catalog */
     public void clear() {
     	//your code here
+    	tables.clear();
     }
 
-    public String getPrimaryKey(int tableid) {
+    public String getPrimaryKey(int tableid) throws NoSuchElementException {
     	//your code here
-    	return null;
+    	if (tables.get(tableid) == null) {
+    		throw new NoSuchElementException();
+    	}
+    	return tables.get(tableid).getpkeyField();
     }
 
     public Iterator<Integer> tableIdIterator() {
     	//your code here
-    	return null;
+    	ArrayList<Integer> tableIds = new ArrayList<>();
+    	for (Table t : tables.values()) {
+    		tableIds.add(t.getFile().getId());
+    	}
+    	return tableIds.iterator();
     }
 
     public String getTableName(int id) {
     	//your code here
-    	return null;
+    	if (tables.get(id) == null) {
+    		throw new NoSuchElementException();
+    	}
+    	return tables.get(id).getName();
     }
     
     /**
@@ -144,4 +221,3 @@ public class Catalog {
         }
     }
 }
-
