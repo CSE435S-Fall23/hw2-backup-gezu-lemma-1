@@ -109,7 +109,42 @@ public class Relation {
 	 */
 	public Relation join(Relation other, int field1, int field2) {
 		//your code here
-		return null;
+		Type[] newTypes = new Type[this.td.getFields().length + other.td.getFields().length];
+		String[] newFields = new String[this.td.getFields().length + other.td.getFields().length];
+		
+		int i = 0;
+		while (i < this.td.getFields().length) {
+			newTypes[i] = this.td.getType(i);
+			newFields[i] = this.td.getFieldName(i);
+			i++;
+		}
+		int j = 0;
+		while (j < other.td.getFields().length) {
+			newTypes[i+j] = other.td.getType(j);
+			newFields[i+j] = other.td.getFieldName(j);
+			j++;
+		}
+		
+		TupleDesc newTd = new TupleDesc(newTypes, newFields);
+		ArrayList<Tuple> newTuples = new ArrayList<>();
+		
+		for (int k = 0; k < this.tuples.size(); k++) {
+			for (int l = 0; l < other.getTuples().size(); l++) {
+				if (tuples.get(k).getField(field1).compare(RelationalOperator.EQ, other.getTuples().get(l).getField(field2))) {
+					Tuple newTuple = new Tuple(newTd);
+					int n = 0;
+					while (n < this.td.getFields().length) {
+						newTuple.setField(n, tuples.get(k).getField(n));
+						n++;
+					}
+					for (int m = 0; m < other.td.getFields().length; m++) {
+						newTuple.setField(m+n, other.getTuples().get(l).getField(m));
+					}
+					newTuples.add(newTuple);
+				}
+			}
+		}
+		return new Relation(newTuples, newTd);
 	}
 	
 	/**
@@ -139,6 +174,11 @@ public class Relation {
 	 */
 	public String toString() {
 		//your code here
-		return null;
+		String output = "";
+		output += this.td.toString() + "\n";
+		for (Tuple t: tuples) {
+			output += t;
+		}
+		return output;		
 	}
 }
