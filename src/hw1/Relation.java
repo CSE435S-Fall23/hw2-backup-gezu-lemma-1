@@ -15,6 +15,8 @@ public class Relation {
 	
 	public Relation(ArrayList<Tuple> l, TupleDesc td) {
 		//your code here
+		this.tuples = l;
+		this.td = td;
 	}
 	
 	/**
@@ -26,7 +28,16 @@ public class Relation {
 	 */
 	public Relation select(int field, RelationalOperator op, Field operand) {
 		//your code here
-		return null;
+		// TODO: handle edge cases and field value bounds?
+		ArrayList<Tuple> output = new ArrayList<>();
+		for (Tuple t: this.tuples) {
+			if (t.getField(field).compare(op, operand)) {
+				output.add(t);
+			}
+		}
+		this.tuples = output;
+		return this;
+		
 	}
 	
 	/**
@@ -37,7 +48,20 @@ public class Relation {
 	 */
 	public Relation rename(ArrayList<Integer> fields, ArrayList<String> names) {
 		//your code here
-		return null;
+		// TODO: handle edge cases and field value bounds?
+		String[] updatedFields = this.td.getFields();
+		for (Integer field: fields) {
+			updatedFields[field] = names.get(field);
+		}
+		this.td.setFields(updatedFields);
+		
+		// Update all the tuples with the new TupleDesc
+		for (Tuple t: this.tuples) {
+			t.setDesc(this.td);
+		}
+		
+		
+		return this;
 	}
 	
 	/**
@@ -47,7 +71,31 @@ public class Relation {
 	 */
 	public Relation project(ArrayList<Integer> fields) {
 		//your code here
-		return null;
+		
+		// Grab the specified fields and types from the input to make new TupleDesc
+		Type[] newTypes = new Type[fields.size()];
+		String[] newFields = new String[fields.size()];
+		for (int i=0; i<fields.size(); i++) {
+			newTypes[i] = this.td.getType(fields.get(i));
+			newFields[i] = this.td.getFieldName(fields.get(i));
+		}
+		
+		TupleDesc newTd = new TupleDesc(newTypes, newFields);
+		
+		// Create new tuples with just the new fields
+		ArrayList<Tuple> newTuples = new ArrayList<>();
+		
+		for (Tuple t: tuples) {
+			Tuple newTuple = new Tuple(newTd);
+			// Set the fields from the new tuple
+			for (int fieldIndex: fields) {
+				newTuple.setField(fieldIndex, t.getField(fieldIndex));
+			}
+			newTuples.add(newTuple);
+		}
+		
+		return new Relation(newTuples, newTd);
+
 	}
 	
 	/**
@@ -77,12 +125,12 @@ public class Relation {
 	
 	public TupleDesc getDesc() {
 		//your code here
-		return null;
+		return this.td;
 	}
 	
 	public ArrayList<Tuple> getTuples() {
 		//your code here
-		return null;
+		return this.tuples;
 	}
 	
 	/**
