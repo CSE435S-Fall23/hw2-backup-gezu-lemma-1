@@ -6,6 +6,7 @@ import java.util.Iterator;
 
 /**
  * A class to perform various aggregations, by accepting one tuple at a time
+ * 
  * @author Doug Shook
  *
  */
@@ -39,10 +40,10 @@ public class Aggregator {
 		// your code here
 		switch (o) {
 		case MAX:
-			handleMax(t);
+			handleMinAndMax(t, AggregateOperator.MAX);
 			break;
 		case MIN:
-			handleMin(t);
+			handleMinAndMax(t, AggregateOperator.MIN);
 			break;
 		case AVG:
 			handleAvg(t);
@@ -56,36 +57,59 @@ public class Aggregator {
 		}
 	}
 
-	private void handleSum(Tuple t) {		
+	private void handleSum(Tuple t) {
 		if (tuples.isEmpty()) {
-	        tuples.add(t);
-	        return;
-	    }
+			tuples.add(t);
+			return;
+		}
 
-	    if (!groupBy) {
-		    int newAggregateValue = ((IntField) t.getField(0)).getValue();
-	        Tuple curr = tuples.get(0);
-	        int currAggregateValue = ((IntField) curr.getField(0)).getValue();
-	        curr.setField(0, new IntField(newAggregateValue + currAggregateValue));
-	        return;
-	    }
-	    
-	    int newGroupByValue = ((IntField) t.getField(0)).getValue();
-	    int newAggregateValue = ((IntField) t.getField(1)).getValue();
-	    for (Tuple curr : tuples) {
-	        int currGroupByValue = ((IntField) curr.getField(0)).getValue();
-	        if (newGroupByValue == currGroupByValue) {
-	            int currAggregateValue = ((IntField) curr.getField(1)).getValue();
-	            curr.setField(1, new IntField(newAggregateValue + currAggregateValue));
-	            return;
-	        } 
-	    }
-        tuples.add(t);  
+		if (!groupBy) {
+			int newAggregateValue = ((IntField) t.getField(0)).getValue();
+			Tuple curr = tuples.get(0);
+			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
+			curr.setField(0, new IntField(newAggregateValue + currAggregateValue));
+			return;
+		}
+
+		int newGroupByValue = ((IntField) t.getField(0)).getValue();
+		int newAggregateValue = ((IntField) t.getField(1)).getValue();
+		for (Tuple curr : tuples) {
+			int currGroupByValue = ((IntField) curr.getField(0)).getValue();
+			if (newGroupByValue == currGroupByValue) {
+				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
+				curr.setField(1, new IntField(newAggregateValue + currAggregateValue));
+				return;
+			}
+		}
+		tuples.add(t);
 	}
 
-
 	private void handleCount(Tuple t) {
-		// TODO Auto-generated method stub
+		if (tuples.isEmpty()) {
+			t.setField(1, new IntField(1));
+			tuples.add(t);
+			return;
+		}
+
+		if (!groupBy) {
+			int newAggregateValue = ((IntField) t.getField(0)).getValue();
+			Tuple curr = tuples.get(0);
+			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
+			curr.setField(0, new IntField(currAggregateValue+1));
+			return;
+		}
+
+		int newGroupByValue = ((IntField) t.getField(0)).getValue();
+		int newAggregateValue = ((IntField) t.getField(1)).getValue();
+		for (Tuple curr : tuples) {
+			int currGroupByValue = ((IntField) curr.getField(0)).getValue();
+			if (newGroupByValue == currGroupByValue) {
+				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
+				curr.setField(1, new IntField(currAggregateValue+1));
+				return;
+			}
+		}
+		tuples.add(t);
 
 	}
 
@@ -94,14 +118,34 @@ public class Aggregator {
 
 	}
 
-	private void handleMin(Tuple t) {
-		// TODO Auto-generated method stub
+	private void handleMinAndMax(Tuple t, AggregateOperator op) {
+		if (tuples.isEmpty()) {
+			tuples.add(t);
+			return;
+		}
 
-	}
+		if (!groupBy) {
+			int newAggregateValue = ((IntField) t.getField(0)).getValue();
+			Tuple curr = tuples.get(0);
+			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
+			curr.setField(0, new IntField(op == AggregateOperator.MIN ? Math.min(newAggregateValue, currAggregateValue)
+					: Math.max(newAggregateValue, currAggregateValue)));
+			return;
+		}
 
-	private void handleMax(Tuple t) {
-		// TODO Auto-generated method stub
-
+		int newGroupByValue = ((IntField) t.getField(0)).getValue();
+		int newAggregateValue = ((IntField) t.getField(1)).getValue();
+		for (Tuple curr : tuples) {
+			int currGroupByValue = ((IntField) curr.getField(0)).getValue();
+			if (newGroupByValue == currGroupByValue) {
+				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
+				curr.setField(1,
+						new IntField(op == AggregateOperator.MIN ? Math.min(newAggregateValue, currAggregateValue)
+								: Math.max(newAggregateValue, currAggregateValue)));
+				return;
+			}
+		}
+		tuples.add(t);
 	}
 
 	/**
