@@ -2,6 +2,7 @@ package hw1;
 
 import java.sql.Types;
 import java.util.HashMap;
+import java.util.Map;
 
 /*
  * Student 1 name: Leoul Gezu
@@ -106,7 +107,8 @@ public class Tuple {
 	public String toString() {
 		// your code here
 		String output = "";
-		for (int i = 0; i < tupleData.size(); i++) {
+		
+		for (Integer i: tupleData.keySet()) {
 			byte[] bytes = tupleData.get(i).toByteArray();
 			if (tupleData.get(i) instanceof IntField) {
 				int intValue = ((IntField) tupleData.get(i)).getValue();
@@ -117,6 +119,7 @@ public class Tuple {
 			}
 			output += ",";
 		}
-		return output;
+		// Cut off annoying trailing comma
+		return output.substring(0, output.length()-1);
 	}
 }

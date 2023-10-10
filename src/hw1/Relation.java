@@ -87,9 +87,9 @@ public class Relation {
 		
 		for (Tuple t: tuples) {
 			Tuple newTuple = new Tuple(newTd);
-			// Set the fields from the new tuple
-			for (int fieldIndex: fields) {
-				newTuple.setField(fieldIndex, t.getField(fieldIndex));
+			// Set the fields for the new tuples
+			for (int i = 0; i<fields.size(); i++) {
+				newTuple.setField(i, t.getField(fields.get(i)));
 			}
 			newTuples.add(newTuple);
 		}
@@ -155,7 +155,13 @@ public class Relation {
 	 */
 	public Relation aggregate(AggregateOperator op, boolean groupBy) {
 		//your code here
-		return null;
+		Aggregator agg = new Aggregator(op, groupBy, td);
+		for (Tuple t: this.tuples) {
+			// TODO: delete this comment
+			System.out.println(t.getPid() + " " + t.toString());
+			agg.merge(t);
+		}
+		return new Relation(agg.getResults(), td);
 	}
 	
 	public TupleDesc getDesc() {
