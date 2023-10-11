@@ -16,6 +16,7 @@ public class Aggregator {
 	boolean groupBy;
 	TupleDesc td;
 	ArrayList<Tuple> tuples;
+	HashMap<Tuple, Integer> counts;
 
 	public Aggregator(AggregateOperator o, boolean groupBy, TupleDesc td) {
 		// your code here
@@ -29,6 +30,8 @@ public class Aggregator {
 		}
 		this.td = td;
 		tuples = new ArrayList<Tuple>();
+		counts = new HashMap<Tuple, Integer>();
+
 	}
 
 	/**
@@ -55,11 +58,14 @@ public class Aggregator {
 			handleSum(t);
 			break;
 		}
+		
+		// TODO: make sure all operation are implemented for strings as well
 	}
 
 	private void handleSum(Tuple t) {
 		if (tuples.isEmpty()) {
 			tuples.add(t);
+			counts.put(t,1);
 			return;
 		}
 
@@ -68,6 +74,7 @@ public class Aggregator {
 			Tuple curr = tuples.get(0);
 			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
 			curr.setField(0, new IntField(newAggregateValue + currAggregateValue));
+			counts.put(curr, counts.get(curr)+1);
 			return;
 		}
 
@@ -78,6 +85,7 @@ public class Aggregator {
 			if (newGroupByValue == currGroupByValue) {
 				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
 				curr.setField(1, new IntField(newAggregateValue + currAggregateValue));
+				counts.put(curr, counts.get(curr)+1);
 				return;
 			}
 		}
@@ -88,6 +96,7 @@ public class Aggregator {
 		if (tuples.isEmpty()) {
 			t.setField(1, new IntField(1));
 			tuples.add(t);
+			counts.put(t,1);
 			return;
 		}
 
@@ -96,6 +105,7 @@ public class Aggregator {
 			Tuple curr = tuples.get(0);
 			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
 			curr.setField(0, new IntField(currAggregateValue+1));
+			counts.put(curr, counts.get(curr)+1);
 			return;
 		}
 
@@ -106,6 +116,7 @@ public class Aggregator {
 			if (newGroupByValue == currGroupByValue) {
 				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
 				curr.setField(1, new IntField(currAggregateValue+1));
+				counts.put(curr, counts.get(curr)+1);
 				return;
 			}
 		}
@@ -115,12 +126,46 @@ public class Aggregator {
 
 	private void handleAvg(Tuple t) {
 		// TODO Auto-generated method stub
+		if (tuples.isEmpty()) {
+			tuples.add(t);
+			counts.put(t,1);
+			return;
+		}
+		
+		if (!groupBy) {
+			Tuple curr = tuples.get(0);
+			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
+			int newAggregateValue = ((IntField) t.getField(0)).getValue();
+			curr.setField(0, new IntField(Math.round(recalculateAverage(counts.get(curr), currAggregateValue, newAggregateValue))));
+			counts.put(curr, counts.get(curr)+1);
+			return;
+		}
+		
+		int newGroupByValue = ((IntField) t.getField(0)).getValue();
+		int newAggregateValue = ((IntField) t.getField(1)).getValue();
+		for (Tuple curr : tuples) {
+			int currGroupByValue = ((IntField) curr.getField(0)).getValue();
+			if (newGroupByValue == currGroupByValue) {
+				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
+				curr.setField(1, new IntField(Math.round(recalculateAverage(counts.get(curr), currAggregateValue, newAggregateValue))));
+				counts.put(curr, counts.get(curr)+1);
+				return;
+			}
+		}
+		tuples.add(t);
+		
 
+	}
+	
+	private Float recalculateAverage(Integer count, Integer prevAverage, Integer newValue) {
+		Float newAverage =  ((float)(count*prevAverage + newValue)/(float)(count + 1));
+		return newAverage;
 	}
 
 	private void handleMinAndMax(Tuple t, AggregateOperator op) {
 		if (tuples.isEmpty()) {
 			tuples.add(t);
+			counts.put(t,1);
 			return;
 		}
 
@@ -130,6 +175,7 @@ public class Aggregator {
 			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
 			curr.setField(0, new IntField(op == AggregateOperator.MIN ? Math.min(newAggregateValue, currAggregateValue)
 					: Math.max(newAggregateValue, currAggregateValue)));
+			counts.put(curr, counts.get(curr)+1);
 			return;
 		}
 
@@ -142,6 +188,7 @@ public class Aggregator {
 				curr.setField(1,
 						new IntField(op == AggregateOperator.MIN ? Math.min(newAggregateValue, currAggregateValue)
 								: Math.max(newAggregateValue, currAggregateValue)));
+				counts.put(curr, counts.get(curr)+1);
 				return;
 			}
 		}

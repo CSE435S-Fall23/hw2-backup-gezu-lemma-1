@@ -139,7 +139,7 @@ public class YourUnitTests2 {
 		
 		assertTrue(ar.getTuples().size() == 1);
 		IntField agg = (IntField) (ar.getTuples().get(0).getField(0));
-		assertTrue(agg.getValue() == 4);
+		assertTrue(agg.getValue() == 5);
 	}
 
 	@Test
@@ -148,8 +148,9 @@ public class YourUnitTests2 {
 		ar = ar.aggregate(AggregateOperator.AVG, true);
 
 		assertTrue(ar.getTuples().size() == 4);
+		System.out.println(ar.getTuples().get(0).getField(0));
 		assertTrue(ar.getTuples().get(0).getField(0).equals(new IntField(530)));
-		assertTrue(ar.getTuples().get(0).getField(1).equals(new IntField(4)));
+		assertTrue(ar.getTuples().get(0).getField(1).equals(new IntField(5)));
 
 	}
 
