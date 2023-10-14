@@ -84,7 +84,7 @@ public class TupleDesc {
 	public int nameToId(String name) throws NoSuchElementException {
 		// your code here
 		for (int i = 0; i < fields.length; i++) {
-			if (fields[i] == name) {
+			if (fields[i].equals(name)) {
 				return i;
 			}
 		}
