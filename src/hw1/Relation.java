@@ -157,8 +157,6 @@ public class Relation {
 		//your code here
 		Aggregator agg = new Aggregator(op, groupBy, td);
 		for (Tuple t: this.tuples) {
-			// TODO: delete this comment
-			System.out.println(t.getPid() + " " + t.toString());
 			agg.merge(t);
 		}
 		return new Relation(agg.getResults(), td);

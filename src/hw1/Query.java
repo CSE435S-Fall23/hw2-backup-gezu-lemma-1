@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.Alias;
+import net.sf.jsqlparser.expression.BinaryExpression;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.Function;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
@@ -93,18 +94,10 @@ public class Query {
 			TupleDesc rightTd = catalog.getDbFile(rightTableId).getTupleDesc();
 			Relation rightTableRelation = new Relation(rightTuples, rightTd);
 
-			// Parse JOIN fields using regex
-			String joinClause = join.getOnExpression().toString();
-			String joinPattern = "([a-zA-Z\\d]+)\\.([a-zA-Z\\d]+)\\s=\\s([a-zA-Z\\d]+)\\.([a-zA-Z\\d]+)";
-			Pattern pat = Pattern.compile(joinPattern);
-			Matcher mat = pat.matcher(joinClause);
-			mat.matches();
-
-			// Group 2 holds the field for the other relation. Group 4 holds the field for
-			// this relation
-			int originalFieldIndex = relation.getDesc().nameToId(mat.group(2));
-			int rightFieldIndex = rightTd.nameToId(mat.group(4));
-
+			// Credit to David Wang from Piazza
+			BinaryExpression expr = (BinaryExpression) join.getOnExpression();
+			int originalFieldIndex = relation.getDesc().nameToId(((Column) expr.getLeftExpression()).getColumnName());
+			int rightFieldIndex = rightTd.nameToId(((Column) expr.getRightExpression()).getColumnName());
 			relation = relation.join(rightTableRelation, originalFieldIndex, rightFieldIndex);
 		}
 		return relation;
@@ -137,24 +130,24 @@ public class Query {
 
 					relation = relation.aggregate(cv.getOp(), isGroupBy);
 				}
-				
+
 				// AS
-                SelectExpressionItem expressionItem = (SelectExpressionItem) selectItem;
-                if (expressionItem.getAlias() != null) {
-                	// Rename operation on relation
-                    String alias = expressionItem.getAlias().getName();
-                    ArrayList<String> newFieldName = new ArrayList<String>();
-                    newFieldName.add(alias);
-                    ArrayList<Integer> fieldNum = new ArrayList<Integer>();
-                    fieldNum.add(relation.getDesc().nameToId(cv.getColumn()));
-                    relation.rename(fieldNum, newFieldName);
-                    
-                    // Update visitor with new expression
-                    Column fieldToRename = (Column) expressionItem.getExpression();
-                    fieldToRename.setColumnName(alias);
-                    expressionItem.setExpression(fieldToRename);  
-                    cv.visit(expressionItem);
-                }
+				SelectExpressionItem expressionItem = (SelectExpressionItem) selectItem;
+				if (expressionItem.getAlias() != null) {
+					// Rename operation on relation
+					String alias = expressionItem.getAlias().getName();
+					ArrayList<String> newFieldName = new ArrayList<String>();
+					newFieldName.add(alias);
+					ArrayList<Integer> fieldNum = new ArrayList<Integer>();
+					fieldNum.add(relation.getDesc().nameToId(cv.getColumn()));
+					relation.rename(fieldNum, newFieldName);
+
+					// Update visitor with new expression
+					Column fieldToRename = (Column) expressionItem.getExpression();
+					fieldToRename.setColumnName(alias);
+					expressionItem.setExpression(fieldToRename);
+					cv.visit(expressionItem);
+				}
 
 				SelectItemsFieldNums.add(relation.getDesc().nameToId(cv.getColumn()));
 
