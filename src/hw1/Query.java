@@ -2,11 +2,13 @@ package hw1;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.Function;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
@@ -57,7 +59,7 @@ public class Query {
 		if (sb.getJoins() != null) {
 			relation = handleJoin(catalog, sb, relation);
 		}
-		
+
 		// SELECT
 		if (sb.getSelectItems() != null) {
 			relation = handleSelect(sb, relation);
@@ -68,17 +70,15 @@ public class Query {
 			relation = handleWhere(sb, relation);
 		}
 
-		// TODO: Implement AS
-
 		return relation;
 
 	}
 
 	private Relation handleWhere(PlainSelect sb, Relation relation) {
-		
+
 		WhereExpressionVisitor wev = new WhereExpressionVisitor();
 		sb.getWhere().accept(wev);
-		
+
 		int whereFieldIndex = relation.getDesc().nameToId(wev.getLeft());
 		return relation.select(whereFieldIndex, wev.getOp(), wev.getRight());
 	}
@@ -122,8 +122,6 @@ public class Query {
 				ColumnVisitor cv = new ColumnVisitor();
 				selectItem.accept(cv);
 
-				Expression expression = ((SelectExpressionItem) selectItem).getExpression();
-				
 				// AGGREGATE
 				if (cv.isAggregate()) {
 					/*
@@ -136,10 +134,28 @@ public class Query {
 						onlyAggregateField.add(relation.getDesc().nameToId(cv.getColumn()));
 						relation = relation.project(onlyAggregateField);
 					}
-					
+
 					relation = relation.aggregate(cv.getOp(), isGroupBy);
 				}
 				
+				// AS
+                SelectExpressionItem expressionItem = (SelectExpressionItem) selectItem;
+                if (expressionItem.getAlias() != null) {
+                	// Rename operation on relation
+                    String alias = expressionItem.getAlias().getName();
+                    ArrayList<String> newFieldName = new ArrayList<String>();
+                    newFieldName.add(alias);
+                    ArrayList<Integer> fieldNum = new ArrayList<Integer>();
+                    fieldNum.add(relation.getDesc().nameToId(cv.getColumn()));
+                    relation.rename(fieldNum, newFieldName);
+                    
+                    // Update visitor with new expression
+                    Column fieldToRename = (Column) expressionItem.getExpression();
+                    fieldToRename.setColumnName(alias);
+                    expressionItem.setExpression(fieldToRename);  
+                    cv.visit(expressionItem);
+                }
+
 				SelectItemsFieldNums.add(relation.getDesc().nameToId(cv.getColumn()));
 
 			}
