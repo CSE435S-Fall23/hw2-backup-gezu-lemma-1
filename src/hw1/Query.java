@@ -57,9 +57,11 @@ public class Query {
 		if (sb.getJoins() != null) {
 			relation = handleJoin(catalog, sb, relation);
 		}
-
+		
 		// SELECT
-		relation = handleSelect(sb, relation);
+		if (sb.getSelectItems() != null) {
+			relation = handleSelect(sb, relation);
+		}
 
 		// WHERE
 		if (sb.getWhere() != null) {
@@ -73,31 +75,17 @@ public class Query {
 	}
 
 	private Relation handleWhere(PlainSelect sb, Relation relation) {
-		// TODO: Dealing with multiple WHEREs ?
-		String whereClause = sb.getWhere().toString();
-
-		// Parse WHERE clause into field and value using regex
-		String wherePattern = "([a-zA-Z\\d]+)\\s=\\s([a-zA-Z\\d]+)";
-		Pattern pat = Pattern.compile(wherePattern);
-		Matcher mat = pat.matcher(whereClause);
-		mat.matches();
-
-		int whereFieldIndex = relation.getDesc().nameToId(mat.group(1));
-
-		Field whereField = null;
-		if (relation.getDesc().getType(whereFieldIndex).equals(Type.INT)) {
-			whereField = new IntField(Integer.parseInt(mat.group(2)));
-		} else if (relation.getDesc().getType(whereFieldIndex).equals(Type.STRING)) {
-			whereField = new StringField(mat.group(2));
-		}
-
-		return relation.select(whereFieldIndex, RelationalOperator.EQ, whereField);
+		
+		WhereExpressionVisitor wev = new WhereExpressionVisitor();
+		sb.getWhere().accept(wev);
+		
+		int whereFieldIndex = relation.getDesc().nameToId(wev.getLeft());
+		return relation.select(whereFieldIndex, wev.getOp(), wev.getRight());
 	}
 
 	private Relation handleJoin(Catalog catalog, PlainSelect sb, Relation relation) {
 		List<Join> joins = sb.getJoins();
 		for (Join join : joins) {
-
 			// Get information for the new table
 			String rightTableName = join.getRightItem().toString();
 			int rightTableId = catalog.getTableId(rightTableName);
@@ -131,13 +119,13 @@ public class Query {
 		if (!selectItems.isEmpty() && !selectItems.get(0).toString().equals("*")) {
 			for (SelectItem selectItem : selectItems) {
 
-				Expression expression = ((SelectExpressionItem) selectItem).getExpression();
-				// AGGREGATE
-				if (expression instanceof Function) {
-					Function function = (Function) expression;
-					String functionName = function.getName();
-					String originalFieldName = function.getParameters().getExpressions().get(0).toString();
+				ColumnVisitor cv = new ColumnVisitor();
+				selectItem.accept(cv);
 
+				Expression expression = ((SelectExpressionItem) selectItem).getExpression();
+				
+				// AGGREGATE
+				if (cv.isAggregate()) {
 					/*
 					 * Because we were instructed to design aggregate to always expect a single
 					 * column for !groupBy, we need to get rid of the other fields first in that
@@ -145,32 +133,15 @@ public class Query {
 					 */
 					if (!isGroupBy) {
 						ArrayList<Integer> onlyAggregateField = new ArrayList<>();
-						onlyAggregateField.add(relation.getDesc().nameToId(originalFieldName));
+						onlyAggregateField.add(relation.getDesc().nameToId(cv.getColumn()));
 						relation = relation.project(onlyAggregateField);
 					}
-
-					switch (functionName) {
-					case "SUM":
-						relation = relation.aggregate(AggregateOperator.SUM, isGroupBy);
-						break;
-					case "MAX":
-						relation = relation.aggregate(AggregateOperator.MAX, isGroupBy);
-						break;
-					case "MIN":
-						relation = relation.aggregate(AggregateOperator.MIN, isGroupBy);
-						break;
-					case "AVG":
-						relation = relation.aggregate(AggregateOperator.AVG, isGroupBy);
-						break;
-					case "COUNT":
-						relation = relation.aggregate(AggregateOperator.COUNT, isGroupBy);
-						break;
-					}
-
-					SelectItemsFieldNums.add(relation.getDesc().nameToId(originalFieldName));
-				} else {
-					SelectItemsFieldNums.add(relation.getDesc().nameToId(selectItem.toString()));
+					
+					relation = relation.aggregate(cv.getOp(), isGroupBy);
 				}
+				
+				SelectItemsFieldNums.add(relation.getDesc().nameToId(cv.getColumn()));
+
 			}
 			return relation.project(SelectItemsFieldNums);
 		}

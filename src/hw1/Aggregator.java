@@ -16,18 +16,12 @@ public class Aggregator {
 	boolean groupBy;
 	TupleDesc td;
 	ArrayList<Tuple> tuples;
-	HashMap<Tuple, Integer> counts;
+	HashMap<Tuple, Integer> counts;  // Only needed to relcalculate average in handleAvg
 
 	public Aggregator(AggregateOperator o, boolean groupBy, TupleDesc td) {
 		// your code here
 		this.o = o;
 		this.groupBy = groupBy;
-		// TODO: delete this comment
-		if (groupBy) {
-			System.out.println("GROUPBY");
-		} else {
-			System.out.println("NOT GROUPBY");
-		}
 		this.td = td;
 		tuples = new ArrayList<Tuple>();
 		counts = new HashMap<Tuple, Integer>();
@@ -125,7 +119,6 @@ public class Aggregator {
 	}
 
 	private void handleAvg(Tuple t) {
-		// TODO Auto-generated method stub
 		if (tuples.isEmpty()) {
 			tuples.add(t);
 			counts.put(t,1);

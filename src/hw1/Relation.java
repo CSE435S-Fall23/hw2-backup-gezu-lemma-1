@@ -174,6 +174,16 @@ public class Relation {
 		return this.tuples;
 	}
 	
+    // Setter for tuples
+    public void setTuples(ArrayList<Tuple> tuples) {
+        this.tuples = tuples;
+    }
+
+    // Setter for td (TupleDesc)
+    public void setDesc(TupleDesc td) {
+        this.td = td;
+    }
+	
 	/**
 	 * Returns a string representation of this relation. The string representation should
 	 * first contain the TupleDesc, followed by each of the tuples in this relation
