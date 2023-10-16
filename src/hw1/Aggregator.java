@@ -43,20 +43,22 @@ public class Aggregator {
 			handleMinAndMax(t, AggregateOperator.MIN);
 			break;
 		case AVG:
-			handleAvg(t);
+			try { handleAvg(t); } catch (Exception e) { e.printStackTrace(); }
 			break;
 		case COUNT:
 			handleCount(t);
 			break;
 		case SUM:
-			handleSum(t);
+			try { handleSum(t); } catch (Exception e) { e.printStackTrace(); }
 			break;
 		}
-		
-		// TODO: make sure all operation are implemented for strings as well
 	}
 
-	private void handleSum(Tuple t) {
+	private void handleSum(Tuple t) throws Exception {
+		if (!groupBy && t.getField(0).getType() == Type.STRING) {
+			throw new Exception("SUM operator is invalid for string field type");
+		}
+		
 		if (tuples.isEmpty()) {
 			tuples.add(t);
 			counts.put(t,1);
@@ -71,13 +73,14 @@ public class Aggregator {
 			counts.put(curr, counts.get(curr)+1);
 			return;
 		}
-
-		int newGroupByValue = ((IntField) t.getField(0)).getValue();
-		int newAggregateValue = ((IntField) t.getField(1)).getValue();
-		for (Tuple curr : tuples) {
-			int currGroupByValue = ((IntField) curr.getField(0)).getValue();
-			if (newGroupByValue == currGroupByValue) {
+		
+		Field newGBYField = t.getField(0);
+		for (Tuple curr: tuples) {
+			Field currGBYField = curr.getField(0);
+			if (newGBYField.compare(RelationalOperator.EQ, currGBYField)) {
+				// We've already confirmed that the aggregate type is not a string so we can safely cast here
 				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
+				int newAggregateValue = ((IntField) t.getField(1)).getValue();
 				curr.setField(1, new IntField(newAggregateValue + currAggregateValue));
 				counts.put(curr, counts.get(curr)+1);
 				return;
@@ -95,19 +98,17 @@ public class Aggregator {
 		}
 
 		if (!groupBy) {
-			int newAggregateValue = ((IntField) t.getField(0)).getValue();
 			Tuple curr = tuples.get(0);
 			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
 			curr.setField(0, new IntField(currAggregateValue+1));
 			counts.put(curr, counts.get(curr)+1);
 			return;
 		}
-
-		int newGroupByValue = ((IntField) t.getField(0)).getValue();
-		int newAggregateValue = ((IntField) t.getField(1)).getValue();
-		for (Tuple curr : tuples) {
-			int currGroupByValue = ((IntField) curr.getField(0)).getValue();
-			if (newGroupByValue == currGroupByValue) {
+		
+		Field newGBYField = t.getField(0);
+		for (Tuple curr: tuples) {
+			Field currGBYField = curr.getField(0);
+			if (newGBYField.compare(RelationalOperator.EQ, currGBYField)) {
 				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
 				curr.setField(1, new IntField(currAggregateValue+1));
 				counts.put(curr, counts.get(curr)+1);
@@ -115,10 +116,13 @@ public class Aggregator {
 			}
 		}
 		tuples.add(t);
-
 	}
 
-	private void handleAvg(Tuple t) {
+	private void handleAvg(Tuple t) throws Exception {
+		if (!groupBy && t.getField(0).getType() == Type.STRING) {
+			throw new Exception("AVG operator is invalid for string field type");
+		}
+		
 		if (tuples.isEmpty()) {
 			tuples.add(t);
 			counts.put(t,1);
@@ -134,20 +138,19 @@ public class Aggregator {
 			return;
 		}
 		
-		int newGroupByValue = ((IntField) t.getField(0)).getValue();
-		int newAggregateValue = ((IntField) t.getField(1)).getValue();
-		for (Tuple curr : tuples) {
-			int currGroupByValue = ((IntField) curr.getField(0)).getValue();
-			if (newGroupByValue == currGroupByValue) {
+		Field newGBYField = t.getField(0);
+		for (Tuple curr: tuples) {
+			Field currGBYField = curr.getField(0);
+			if (newGBYField.compare(RelationalOperator.EQ, currGBYField)) {
+				// We've already confirmed that the aggregate type is not a string so we can safely cast here
 				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
+				int newAggregateValue = ((IntField) t.getField(1)).getValue();
 				curr.setField(1, new IntField(Math.round(recalculateAverage(counts.get(curr), currAggregateValue, newAggregateValue))));
 				counts.put(curr, counts.get(curr)+1);
 				return;
 			}
 		}
 		tuples.add(t);
-		
-
 	}
 	
 	private Float recalculateAverage(Integer count, Integer prevAverage, Integer newValue) {
@@ -163,24 +166,27 @@ public class Aggregator {
 		}
 
 		if (!groupBy) {
-			int newAggregateValue = ((IntField) t.getField(0)).getValue();
 			Tuple curr = tuples.get(0);
-			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
-			curr.setField(0, new IntField(op == AggregateOperator.MIN ? Math.min(newAggregateValue, currAggregateValue)
-					: Math.max(newAggregateValue, currAggregateValue)));
+			Field newAggregateField = t.getField(0);
+			Field currAggregateField = curr.getField(0);
+			if ((op == AggregateOperator.MAX && newAggregateField.compare(RelationalOperator.GT, currAggregateField))
+					|| (op == AggregateOperator.MIN && newAggregateField.compare(RelationalOperator.LT, currAggregateField))) {
+				curr.setField(0, newAggregateField);
+			} 
 			counts.put(curr, counts.get(curr)+1);
 			return;
 		}
-
-		int newGroupByValue = ((IntField) t.getField(0)).getValue();
-		int newAggregateValue = ((IntField) t.getField(1)).getValue();
-		for (Tuple curr : tuples) {
-			int currGroupByValue = ((IntField) curr.getField(0)).getValue();
-			if (newGroupByValue == currGroupByValue) {
-				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
-				curr.setField(1,
-						new IntField(op == AggregateOperator.MIN ? Math.min(newAggregateValue, currAggregateValue)
-								: Math.max(newAggregateValue, currAggregateValue)));
+		
+		Field newGBYField = t.getField(0);
+		for (Tuple curr: tuples) {
+			Field currGBYField = curr.getField(0);
+			if (newGBYField.compare(RelationalOperator.EQ, currGBYField)) {
+				Field newAggregateField = t.getField(1);
+				Field currAggregateField = curr.getField(1);
+				if ((op == AggregateOperator.MAX && newAggregateField.compare(RelationalOperator.GT, currAggregateField))
+						|| (op == AggregateOperator.MIN && newAggregateField.compare(RelationalOperator.LT, currAggregateField))) {
+					curr.setField(1, newAggregateField);
+				} 
 				counts.put(curr, counts.get(curr)+1);
 				return;
 			}
