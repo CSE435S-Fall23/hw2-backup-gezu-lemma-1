@@ -109,7 +109,12 @@ public class RelationTest {
 		ArrayList<Integer> c = new ArrayList<Integer>();
 		c.add(1);
 		ar = ar.project(c);
-		ar = ar.aggregate(AggregateOperator.SUM, false);
+		try {
+			ar = ar.aggregate(AggregateOperator.SUM, false);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 		assertTrue(ar.getTuples().size() == 1);
 		IntField agg = (IntField)(ar.getTuples().get(0).getField(0));
@@ -119,7 +124,12 @@ public class RelationTest {
 	@Test
 	public void testGroupBy() {
 		Relation ar = new Relation(ahf.getAllTuples(), atd);
-		ar = ar.aggregate(AggregateOperator.SUM, true);
+		try {
+			ar = ar.aggregate(AggregateOperator.SUM, true);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 		assertTrue(ar.getTuples().size() == 4);
 	}

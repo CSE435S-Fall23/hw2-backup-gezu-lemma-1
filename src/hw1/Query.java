@@ -128,7 +128,12 @@ public class Query {
 						relation = relation.project(onlyAggregateField);
 					}
 
-					relation = relation.aggregate(cv.getOp(), isGroupBy);
+					try {
+						relation = relation.aggregate(cv.getOp(), isGroupBy);
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 
 				// AS

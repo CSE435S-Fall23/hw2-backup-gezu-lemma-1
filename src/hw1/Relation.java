@@ -152,8 +152,9 @@ public class Relation {
 	 * @param op the aggregation operation to be performed
 	 * @param groupBy whether or not a grouping should be performed
 	 * @return
+	 * @throws Exception 
 	 */
-	public Relation aggregate(AggregateOperator op, boolean groupBy) {
+	public Relation aggregate(AggregateOperator op, boolean groupBy) throws Exception {
 		//your code here
 		Aggregator agg = new Aggregator(op, groupBy, td);
 		for (Tuple t: this.tuples) {

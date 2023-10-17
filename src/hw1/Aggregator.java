@@ -32,8 +32,9 @@ public class Aggregator {
 	 * Merges the given tuple into the current aggregation
 	 * 
 	 * @param t the tuple to be aggregated
+	 * @throws Exception 
 	 */
-	public void merge(Tuple t) {
+	public void merge(Tuple t) throws Exception {
 		// your code here
 		
 		// COUNT has special empty behavior but everything else can be taken care of here
@@ -51,13 +52,13 @@ public class Aggregator {
 			handleMinAndMax(t, AggregateOperator.MIN);
 			break;
 		case AVG:
-			try { handleSumAndAvg(t, AggregateOperator.AVG); } catch (Exception e) { e.printStackTrace(); }
+			handleSumAndAvg(t, AggregateOperator.AVG);
 			break;
 		case COUNT:
 			handleCount(t);
 			break;
 		case SUM:
-			try { handleSumAndAvg(t, AggregateOperator.SUM); } catch (Exception e) { e.printStackTrace(); }
+			handleSumAndAvg(t, AggregateOperator.SUM);
 			break;
 		}
 	}
@@ -77,7 +78,8 @@ public class Aggregator {
 	}
 
 	private void handleSumAndAvg(Tuple t, AggregateOperator op) throws Exception {
-		if (!groupBy && t.getField(0).getType() == Type.STRING) {
+		if (!groupBy && t.getField(0).getType().equals(Type.STRING) 
+				|| groupBy && t.getField(1).getType().equals(Type.STRING)) {
 			throw new Exception("SUM or AVG operator is invalid for string field type");
 		}
 		
