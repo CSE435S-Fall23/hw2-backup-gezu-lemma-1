@@ -2,6 +2,12 @@ package hw1;
 
 import java.util.ArrayList;
 
+/*
+ * Student 1 name: Leoul Gezu
+ * Student 2 name: Yab Lemma
+ * Date: 10/16/2023
+ */
+
 /**
  * This class provides methods to perform relational algebra operations. It will be used
  * to implement SQL queries.

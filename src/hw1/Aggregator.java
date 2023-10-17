@@ -4,6 +4,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
+/*
+ * Student 1 name: Leoul Gezu
+ * Student 2 name: Yab Lemma
+ * Date: 10/16/2023
+ */
+
 /**
  * A class to perform various aggregations, by accepting one tuple at a time
  * 
