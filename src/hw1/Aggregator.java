@@ -35,6 +35,14 @@ public class Aggregator {
 	 */
 	public void merge(Tuple t) {
 		// your code here
+		
+		// COUNT has special empty behavior but everything else can be taken care of here
+		if (tuples.isEmpty() && o != AggregateOperator.COUNT) {
+			tuples.add(t);
+			counts.put(t,1);
+			return;
+		}
+		
 		switch (o) {
 		case MAX:
 			handleMinAndMax(t, AggregateOperator.MAX);
@@ -43,52 +51,59 @@ public class Aggregator {
 			handleMinAndMax(t, AggregateOperator.MIN);
 			break;
 		case AVG:
-			try { handleAvg(t); } catch (Exception e) { e.printStackTrace(); }
+			try { handleSumAndAvg(t, AggregateOperator.AVG); } catch (Exception e) { e.printStackTrace(); }
 			break;
 		case COUNT:
 			handleCount(t);
 			break;
 		case SUM:
-			try { handleSum(t); } catch (Exception e) { e.printStackTrace(); }
+			try { handleSumAndAvg(t, AggregateOperator.SUM); } catch (Exception e) { e.printStackTrace(); }
 			break;
 		}
 	}
-
-	private void handleSum(Tuple t) throws Exception {
-		if (!groupBy && t.getField(0).getType() == Type.STRING) {
-			throw new Exception("SUM operator is invalid for string field type");
-		}
-		
-		if (tuples.isEmpty()) {
-			tuples.add(t);
-			counts.put(t,1);
-			return;
-		}
-
-		if (!groupBy) {
-			int newAggregateValue = ((IntField) t.getField(0)).getValue();
-			Tuple curr = tuples.get(0);
-			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
-			curr.setField(0, new IntField(newAggregateValue + currAggregateValue));
-			counts.put(curr, counts.get(curr)+1);
-			return;
-		}
-		
+	
+	private boolean findGBYTupleToUpdate(Tuple t, Tuple defaultTupleToUpdate) {
+		// Only diff between GBY and !GBY is looking for the right tuple to update
 		Field newGBYField = t.getField(0);
+		boolean isFound = false;
 		for (Tuple curr: tuples) {
 			Field currGBYField = curr.getField(0);
 			if (newGBYField.compare(RelationalOperator.EQ, currGBYField)) {
-				// We've already confirmed that the aggregate type is not a string so we can safely cast here
-				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
-				int newAggregateValue = ((IntField) t.getField(1)).getValue();
-				curr.setField(1, new IntField(newAggregateValue + currAggregateValue));
-				counts.put(curr, counts.get(curr)+1);
-				return;
+				defaultTupleToUpdate = curr;
+				isFound = true;
 			}
 		}
-		tuples.add(t);
+		return isFound;
 	}
 
+	private void handleSumAndAvg(Tuple t, AggregateOperator op) throws Exception {
+		if (!groupBy && t.getField(0).getType() == Type.STRING) {
+			throw new Exception("SUM or AVG operator is invalid for string field type");
+		}
+		
+		Tuple tupleToUpdate = tuples.get(0);
+		if (groupBy) {
+			if (!findGBYTupleToUpdate(t, tupleToUpdate)) {
+				// Add the tuple and exit if it is a new GBY field
+				tuples.add(t);
+				return;
+			};
+		}
+		
+		int aggregateFieldIndex = groupBy ? 1 : 0;
+		int currAggregateValue = ((IntField) tupleToUpdate.getField(aggregateFieldIndex)).getValue();
+		int newAggregateValue = ((IntField) t.getField(aggregateFieldIndex)).getValue();
+		
+		tupleToUpdate.setField(aggregateFieldIndex, op == AggregateOperator.SUM ? new IntField(newAggregateValue + currAggregateValue):
+			new IntField(Math.round(recalculateAverage(counts.get(tupleToUpdate), currAggregateValue, newAggregateValue))));
+		counts.put(tupleToUpdate, counts.get(tupleToUpdate)+1);
+	}
+	
+	private Float recalculateAverage(Integer count, Integer prevAverage, Integer newValue) {
+		Float newAverage =  ((float)(count*prevAverage + newValue)/(float)(count + 1));
+		return newAverage;
+	}
+	
 	private void handleCount(Tuple t) {
 		if (tuples.isEmpty()) {
 			t.setField(1, new IntField(1));
@@ -96,102 +111,40 @@ public class Aggregator {
 			counts.put(t,1);
 			return;
 		}
-
-		if (!groupBy) {
-			Tuple curr = tuples.get(0);
-			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
-			curr.setField(0, new IntField(currAggregateValue+1));
-			counts.put(curr, counts.get(curr)+1);
-			return;
-		}
 		
-		Field newGBYField = t.getField(0);
-		for (Tuple curr: tuples) {
-			Field currGBYField = curr.getField(0);
-			if (newGBYField.compare(RelationalOperator.EQ, currGBYField)) {
-				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
-				curr.setField(1, new IntField(currAggregateValue+1));
-				counts.put(curr, counts.get(curr)+1);
+		Tuple tupleToUpdate = tuples.get(0);
+		if (groupBy) {
+			if (!findGBYTupleToUpdate(t, tupleToUpdate)) {
+				// Add the tuple and exit if it is a new GBY field
+				tuples.add(t);
 				return;
-			}
-		}
-		tuples.add(t);
-	}
-
-	private void handleAvg(Tuple t) throws Exception {
-		if (!groupBy && t.getField(0).getType() == Type.STRING) {
-			throw new Exception("AVG operator is invalid for string field type");
+			};
 		}
 		
-		if (tuples.isEmpty()) {
-			tuples.add(t);
-			counts.put(t,1);
-			return;
-		}
-		
-		if (!groupBy) {
-			Tuple curr = tuples.get(0);
-			int currAggregateValue = ((IntField) curr.getField(0)).getValue();
-			int newAggregateValue = ((IntField) t.getField(0)).getValue();
-			curr.setField(0, new IntField(Math.round(recalculateAverage(counts.get(curr), currAggregateValue, newAggregateValue))));
-			counts.put(curr, counts.get(curr)+1);
-			return;
-		}
-		
-		Field newGBYField = t.getField(0);
-		for (Tuple curr: tuples) {
-			Field currGBYField = curr.getField(0);
-			if (newGBYField.compare(RelationalOperator.EQ, currGBYField)) {
-				// We've already confirmed that the aggregate type is not a string so we can safely cast here
-				int currAggregateValue = ((IntField) curr.getField(1)).getValue();
-				int newAggregateValue = ((IntField) t.getField(1)).getValue();
-				curr.setField(1, new IntField(Math.round(recalculateAverage(counts.get(curr), currAggregateValue, newAggregateValue))));
-				counts.put(curr, counts.get(curr)+1);
-				return;
-			}
-		}
-		tuples.add(t);
-	}
-	
-	private Float recalculateAverage(Integer count, Integer prevAverage, Integer newValue) {
-		Float newAverage =  ((float)(count*prevAverage + newValue)/(float)(count + 1));
-		return newAverage;
+		int aggregateFieldIndex = groupBy ? 1 : 0;
+		int currAggregateValue = ((IntField) tupleToUpdate.getField(aggregateFieldIndex)).getValue();
+		tupleToUpdate.setField(aggregateFieldIndex, new IntField(currAggregateValue+1));
+		counts.put(tupleToUpdate, counts.get(tupleToUpdate)+1);
 	}
 
 	private void handleMinAndMax(Tuple t, AggregateOperator op) {
-		if (tuples.isEmpty()) {
-			tuples.add(t);
-			counts.put(t,1);
-			return;
-		}
-
-		if (!groupBy) {
-			Tuple curr = tuples.get(0);
-			Field newAggregateField = t.getField(0);
-			Field currAggregateField = curr.getField(0);
-			if ((op == AggregateOperator.MAX && newAggregateField.compare(RelationalOperator.GT, currAggregateField))
-					|| (op == AggregateOperator.MIN && newAggregateField.compare(RelationalOperator.LT, currAggregateField))) {
-				curr.setField(0, newAggregateField);
-			} 
-			counts.put(curr, counts.get(curr)+1);
-			return;
+		Tuple tupleToUpdate = tuples.get(0);
+		if (groupBy) {
+			if (!findGBYTupleToUpdate(t, tupleToUpdate)) {
+				// Add the tuple and exit if it is a new GBY field
+				tuples.add(t);
+				return;
+			};
 		}
 		
-		Field newGBYField = t.getField(0);
-		for (Tuple curr: tuples) {
-			Field currGBYField = curr.getField(0);
-			if (newGBYField.compare(RelationalOperator.EQ, currGBYField)) {
-				Field newAggregateField = t.getField(1);
-				Field currAggregateField = curr.getField(1);
-				if ((op == AggregateOperator.MAX && newAggregateField.compare(RelationalOperator.GT, currAggregateField))
-						|| (op == AggregateOperator.MIN && newAggregateField.compare(RelationalOperator.LT, currAggregateField))) {
-					curr.setField(1, newAggregateField);
-				} 
-				counts.put(curr, counts.get(curr)+1);
-				return;
-			}
-		}
-		tuples.add(t);
+		int aggregateFieldIndex = groupBy ? 1 : 0;
+		Field newAggregateField = t.getField(aggregateFieldIndex);
+		Field currAggregateField = tupleToUpdate.getField(aggregateFieldIndex);
+		if ((op == AggregateOperator.MAX && newAggregateField.compare(RelationalOperator.GT, currAggregateField))
+				|| (op == AggregateOperator.MIN && newAggregateField.compare(RelationalOperator.LT, currAggregateField))) {
+			tupleToUpdate.setField(aggregateFieldIndex, newAggregateField);
+			counts.put(tupleToUpdate, counts.get(tupleToUpdate)+1);
+		} 
 	}
 
 	/**

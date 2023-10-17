@@ -100,6 +100,7 @@ public class YourUnitTests2 {
 		Relation ar = new Relation(ahf.getAllTuples(), atd);
 		ar = ar.aggregate(AggregateOperator.MIN, true);
 
+		System.out.println("----" + ar.getTuples().size());
 		assertTrue(ar.getTuples().size() == 4);
 		assertTrue(ar.getTuples().get(0).getField(0).equals(new IntField(530)));
 		assertTrue(ar.getTuples().get(0).getField(1).equals(new IntField(1)));
